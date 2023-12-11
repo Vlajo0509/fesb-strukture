@@ -1,0 +1,168 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+ 
+// Struktura za artikle
+typedef struct {
+    char naziv[100];
+    int kolicina;
+    float cijena;
+} Artikl;
+ 
+// Struktura za čvor artikala
+typedef struct ArtiklNode {
+    Artikl artikl;
+    struct ArtiklNode* next;
+} ArtiklNode;
+ 
+// Struktura za račun
+typedef struct {
+    char datum[11];
+    ArtiklNode* artikli;
+} Racun;
+ 
+// Struktura za čvor računa
+typedef struct RacunNode {
+    Racun racun;
+    struct RacunNode* next;
+} RacunNode;
+ 
+// Funkcija za dodavanje artikla u vezanu listu artikala
+void dodajArtikl(ArtiklNode** glava, Artikl artikl) {
+    ArtiklNode* novi = (ArtiklNode*)malloc(sizeof(ArtiklNode));
+    novi->artikl = artikl;
+    novi->next = NULL;
+ 
+    if (*glava == NULL) {
+        *glava = novi;
+    } else {
+        ArtiklNode* trenutni = *glava;
+        while (trenutni->next != NULL) {
+            trenutni = trenutni->next;
+        }
+        trenutni->next = novi;
+    }
+}
+ 
+// Funkcija za dodavanje računa u vezanu listu računa
+void dodajRacun(RacunNode** glava, Racun racun) {
+    RacunNode* novi = (RacunNode*)malloc(sizeof(RacunNode));
+    novi->racun = racun;
+    novi->next = NULL;
+ 
+    if (*glava == NULL) {
+        *glava = novi;
+    } else {
+        RacunNode* trenutni = *glava;
+        while (trenutni->next != NULL) {
+            trenutni = trenutni->next;
+        }
+        trenutni->next = novi;
+    }
+}
+ 
+// Funkcija za ispis računa
+void ispisiRacun(Racun racun) {
+    printf("Datum: %s\n", racun.datum);
+    ArtiklNode* trenutni = racun.artikli;
+    while (trenutni != NULL) {
+        printf("  Naziv: %s, Količina: %d, Cijena: %.2f\n",
+               trenutni->artikl.naziv, trenutni->artikl.kolicina, trenutni->artikl.cijena);
+        trenutni = trenutni->next;
+    }
+}
+ 
+// Funkcija za ispis ukupne potrošnje na određeni artikl u vremenskom razdoblju
+void ukupnaPotrosnja(RacunNode* glava, char trazeniArtikl[], char pocetak[], char kraj[]) {
+    RacunNode* trenutniRacun = glava;
+    float ukupnaCijena = 0;
+    int ukupnaKolicina = 0;
+ 
+    while (trenutniRacun != NULL) {
+        // Provjeri jesu li datumi unutar traženog razdoblja
+        if (strcmp(trenutniRacun->racun.datum, pocetak) >= 0 && strcmp(trenutniRacun->racun.datum, kraj) <= 0) {
+            ArtiklNode* trenutniArtikl = trenutniRacun->racun.artikli;
+            while (trenutniArtikl != NULL) {
+                // Provjeri jesu li nazivi artikala jednaki
+                if (strcmp(trenutniArtikl->artikl.naziv, trazeniArtikl) == 0) {
+                    ukupnaCijena += (trenutniArtikl->artikl.kolicina * trenutniArtikl->artikl.cijena);
+                    ukupnaKolicina += trenutniArtikl->artikl.kolicina;
+                }
+                trenutniArtikl = trenutniArtikl->next;
+            }
+        }
+        trenutniRacun = trenutniRacun->next;
+    }
+ 
+    printf("Ukupna potrošnja na artikl '%s' u razdoblju od %s do %s:\n", trazeniArtikl, pocetak, kraj);
+    printf("  Ukupna cijena: %.2f\n", ukupnaCijena);
+    printf("  Ukupna količina: %d\n", ukupnaKolicina);
+}
+ 
+int main() {
+    FILE* datoteka = fopen("racuni.txt", "r");
+    if (datoteka == NULL) {
+        printf("Greška pri otvaranju datoteke.\n");
+        return 1;
+    }
+ 
+    RacunNode* listaRacuna = NULL;
+ 
+    // Čitanje datoteke i izgradnja struktura podataka
+    while (!feof(datoteka)) {
+        Racun noviRacun;
+        fscanf(datoteka, "%10s", noviRacun.datum);
+ 
+        // Kreiranje vezane liste artikala za trenutni račun
+        noviRacun.artikli = NULL;
+        while (1) {
+            Artikl noviArtikl;
+            int rezultat = fscanf(datoteka, "%99s %d %f", noviArtikl.naziv, &noviArtikl.kolicina, &noviArtikl.cijena);
+            if (rezultat == EOF || rezultat == 0)
+                break;
+            
+            dodajArtikl(&(noviRacun.artikli), noviArtikl);
+        }
+ 
+        dodajRacun(&listaRacuna, noviRacun);
+    }
+ 
+    fclose(datoteka);
+ 
+    // Ispis računa
+    RacunNode* trenutniRacun = listaRacuna;
+    while (trenutniRacun != NULL) {
+        ispisiRacun(trenutniRacun->racun);
+        trenutniRacun = trenutniRacun->next;
+    }
+ 
+    // Upit za ukupnu potrošnju na određeni artikl u vremenskom razdoblju
+    char trazeniArtikl[100];
+    char pocetak[11];
+    char kraj[11];
+ 
+    printf("\nUnesite naziv artikla: ");
+    scanf("%s", trazeniArtikl);
+    printf("Unesite početni datum (YYYY-MM-DD): ");
+    scanf("%s", pocetak);
+    printf("Unesite završni datum (YYYY-MM-DD): ");
+    scanf("%s", kraj);
+ 
+    ukupnaPotrosnja(listaRacuna, trazeniArtikl, pocetak, kraj);
+ 
+    // Oslobađanje zauzetih resursa
+    trenutniRacun = listaRacuna;
+    while (trenutniRacun != NULL) {
+        ArtiklNode* trenutniArtikl = trenutniRacun->racun.artikli;
+        while (trenutniArtikl != NULL) {
+            ArtiklNode* temp = trenutniArtikl;
+            trenutniArtikl = trenutniArtikl->next;
+            free(temp);
+        }
+        RacunNode* temp = trenutniRacun;
+        trenutniRacun = trenutniRacun->next;
+        free(temp);
+    }
+ 
+    return 0;
+}
