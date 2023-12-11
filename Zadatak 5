@@ -1,0 +1,108 @@
+#include <stdio.h>
+#include <stdlib.h>
+ 
+// Struktura čvora vezane liste
+typedef struct Node {
+    int data;
+    struct Node* next;
+} Node;
+ 
+// Funkcija za dodavanje elementa na vrh stoga
+void push(Node** top, int value) {
+    Node* newNode = (Node*)malloc(sizeof(Node));
+    if (!newNode) {
+        printf("Greška pri alokaciji memorije\n");
+        exit(EXIT_FAILURE);
+    }
+ 
+    newNode->data = value;
+    newNode->next = *top;
+    *top = newNode;
+}
+ 
+// Funkcija za uklanjanje elementa s vrha stoga
+int pop(Node** top) {
+    if (*top == NULL) {
+        printf("Stog je prazan\n");
+        exit(EXIT_FAILURE);
+    }
+ 
+    Node* temp = *top;
+    int value = temp->data;
+    *top = temp->next;
+    free(temp);
+    return value;
+}
+ 
+// Funkcija za izračunavanje rezultata postfiksnog izraza
+int evaluatePostfix(char* expression) {
+    Node* stack = NULL;
+    int i = 0;
+ 
+    while (expression[i] != '\0') {
+        if (expression[i] >= '0' && expression[i] <= '9') {
+            // Ako je znak broj, stavi ga na stog
+            push(&stack, expression[i] - '0');
+        } else {
+            // Ako je znak operacija, izvrši operaciju nad zadnja dva elementa na stogu
+            int operand2 = pop(&stack);
+            int operand1 = pop(&stack);
+            switch (expression[i]) {
+                case '+':
+                    push(&stack, operand1 + operand2);
+                    break;
+                case '-':
+                    push(&stack, operand1 - operand2);
+                    break;
+                case '*':
+                    push(&stack, operand1 * operand2);
+                    break;
+                case '/':
+                    push(&stack, operand1 / operand2);
+                    break;
+                default:
+                    printf("Nepodržana operacija: %c\n", expression[i]);
+                    exit(EXIT_FAILURE);
+            }
+        }
+        i++;
+    }
+ 
+    // Rezultat bi trebao biti jedini preostali element na stogu
+    return pop(&stack);
+}
+ 
+int main() {
+    FILE* file = fopen("postfix.txt", "r");
+    if (!file) {
+        printf("Nije moguće otvoriti datoteku\n");
+        return EXIT_FAILURE;
+    }
+ 
+    // Čitanje postfiksnog izraza iz datoteke
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+ 
+    char* expression = (char*)malloc(file_size + 1);
+    if (!expression) {
+        printf("Greška pri alokaciji memorije\n");
+        fclose(file);
+        return EXIT_FAILURE;
+    }
+ 
+    fread(expression, 1, file_size, file);
+    expression[file_size] = '\0';
+    fclose(file);
+ 
+    // Računanje rezultata postfiksnog izraza
+    int result = evaluatePostfix(expression);
+ 
+    // Ispis rezultata
+    printf("Rezultat postfiksnog izraza: %d\n", result);
+ 
+    // Oslobađanje memorije
+    free(expression);
+ 
+    return EXIT_SUCCESS;
+}
